@@ -5,6 +5,7 @@ const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
 const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
 const zod_1 = require("zod");
 const csp_client_js_1 = require("./client/csp_client.js");
+const iam_auth_js_1 = require("./auth/iam_auth.js");
 // ── Input schemas ────────────────────────────────────────────────────────────
 const SearchCasesInput = zod_1.z.object({
     keywords: zod_1.z.string(),
@@ -22,7 +23,12 @@ const GetRelatedDocsInput = zod_1.z.object({
     limit: zod_1.z.number().int().min(1).max(10).default(5),
 });
 // ── Server setup ─────────────────────────────────────────────────────────────
-const client = new csp_client_js_1.CspClient(process.env["CSP_BASE_URL"] ?? "https://csp.ibm.com/api/v1", async () => process.env["CSP_TOKEN"] ?? "");
+// In FIXTURE_MODE, no real credentials are needed — IamTokenManager is not called.
+// In live mode, set CSP_CLIENT_ID and CSP_CLIENT_SECRET env vars.
+const auth = process.env.FIXTURE_MODE === "true"
+    ? { getToken: async () => "" }
+    : (0, iam_auth_js_1.createTokenManager)();
+const client = new csp_client_js_1.CspClient({ auth });
 const server = new index_js_1.Server({ name: "csp-connector", version: "0.1.0" }, { capabilities: { tools: {} } });
 // ── tools/list ───────────────────────────────────────────────────────────────
 server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => ({

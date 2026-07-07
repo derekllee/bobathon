@@ -6,7 +6,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { CspClient } from "./client/csp_client.js";
-import { IamTokenManager } from "./auth/iam_auth.js";
+import { createTokenManager } from "./auth/iam_auth.js";
 
 // ── Input schemas ────────────────────────────────────────────────────────────
 
@@ -30,11 +30,11 @@ const GetRelatedDocsInput = z.object({
 
 // ── Server setup ─────────────────────────────────────────────────────────────
 
-// In FIXTURE_MODE the auth layer is never called, so stub credentials are safe.
-const auth = new IamTokenManager({
-  clientId:     process.env["CSP_CLIENT_ID"]     ?? "fixture-dev",
-  clientSecret: process.env["CSP_CLIENT_SECRET"] ?? "fixture-dev",
-});
+// In FIXTURE_MODE, no real credentials are needed — IamTokenManager is not called.
+// In live mode, set CSP_CLIENT_ID and CSP_CLIENT_SECRET env vars.
+const auth = process.env.FIXTURE_MODE === "true"
+  ? { getToken: async () => "" } as any
+  : createTokenManager();
 
 const client = new CspClient({ auth });
 

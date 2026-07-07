@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: csp-bob-connector/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: csp-bob-connector
+
+      - name: Build
+        run: npm run build
+        working-directory: csp-bob-connector
+
+      - name: Test (fixture mode)
+        run: npm test
+        working-directory: csp-bob-connector
+        env:
+          FIXTURE_MODE: "true"

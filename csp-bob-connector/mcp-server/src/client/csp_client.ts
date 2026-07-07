@@ -27,10 +27,10 @@ const FIXTURE_PATH = path.join(__dirname, "../../test/fixtures/csp_responses.jso
 
 export interface CspSearchParams {
   keywords: string;
-  product?: string;
-  severity?: "1" | "2" | "3" | "4" | "any";
-  status?: "open" | "closed" | "all";
-  limit?: number;
+  product?: string | undefined;
+  severity?: "1" | "2" | "3" | "4" | "any" | undefined;
+  status?: "open" | "closed" | "all" | undefined;
+  limit?: number | undefined;
 }
 
 export interface CspCase {
