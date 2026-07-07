@@ -19,20 +19,20 @@
 import axios, { AxiosInstance } from "axios";
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 import { IamTokenManager } from "../auth/iam_auth.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const FIXTURE_PATH = path.join(__dirname, "../../test/fixtures/csp_responses.json");
+// Resolve fixture path relative to the project root (csp-bob-connector/) so it works
+// both when compiled (node runs from project root) and under ts-jest.
+const FIXTURE_PATH = path.resolve(process.cwd(), "mcp-server/test/fixtures/csp_responses.json");
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface CspSearchParams {
   keywords: string;
-  product?: string;
-  severity?: "1" | "2" | "3" | "4" | "any";
-  status?: "open" | "closed" | "all";
-  limit?: number;
+  product?: string | undefined;
+  severity?: "1" | "2" | "3" | "4" | "any" | undefined;
+  status?: "open" | "closed" | "all" | undefined;
+  limit?: number | undefined;
 }
 
 export interface CspCase {

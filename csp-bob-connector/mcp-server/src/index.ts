@@ -6,6 +6,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { CspClient } from "./client/csp_client.js";
+import { createTokenManager } from "./auth/iam_auth.js";
 
 // ── Input schemas ────────────────────────────────────────────────────────────
 
@@ -29,10 +30,13 @@ const GetRelatedDocsInput = z.object({
 
 // ── Server setup ─────────────────────────────────────────────────────────────
 
-const client = new CspClient(
-  process.env["CSP_BASE_URL"] ?? "https://csp.ibm.com/api/v1",
-  async () => process.env["CSP_TOKEN"] ?? ""
-);
+// In FIXTURE_MODE, no real credentials are needed — IamTokenManager is not called.
+// In live mode, set CSP_CLIENT_ID and CSP_CLIENT_SECRET env vars.
+const auth = process.env.FIXTURE_MODE === "true"
+  ? { getToken: async () => "" } as any
+  : createTokenManager();
+
+const client = new CspClient({ auth });
 
 const server = new Server(
   { name: "csp-connector", version: "0.1.0" },
