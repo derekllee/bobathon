@@ -24,9 +24,7 @@ exports.CspClient = exports.CspApiError = void 0;
 const axios_1 = __importDefault(require("axios"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
-// Resolve fixture path relative to the project root (csp-bob-connector/) so it works
-// both when compiled (node runs from project root) and under ts-jest.
-const FIXTURE_PATH = path_1.default.resolve(process.cwd(), "mcp-server/test/fixtures/csp_responses.json");
+const FIXTURE_PATH = path_1.default.join(__dirname, "../../test/fixtures/csp_responses.json");
 class CspApiError extends Error {
     statusCode;
     constructor(statusCode, message) {

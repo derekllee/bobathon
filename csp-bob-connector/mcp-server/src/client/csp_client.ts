@@ -21,9 +21,7 @@ import fs from "fs";
 import path from "path";
 import { IamTokenManager } from "../auth/iam_auth.js";
 
-// Resolve fixture path relative to the project root (csp-bob-connector/) so it works
-// both when compiled (node runs from project root) and under ts-jest.
-const FIXTURE_PATH = path.resolve(process.cwd(), "mcp-server/test/fixtures/csp_responses.json");
+const FIXTURE_PATH = path.join(__dirname, "../../test/fixtures/csp_responses.json");
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
