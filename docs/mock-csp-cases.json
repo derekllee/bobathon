@@ -1,0 +1,162 @@
+{
+  "search_OOM_watsonx": {
+    "total": 4,
+    "cases": [
+      {
+        "case_id": "500DyA3K8mNpQ7rXv2Wj",
+        "case_number": "TS012483901",
+        "title": "Kubernetes pod OOM kill during concurrent Presto queries in watsonx.data",
+        "description_snippet": "The Presto coordinator pod is being OOM-killed by Kubernetes when more than 20 concurrent analytical queries are submitted against large Iceberg tables. Heap usage spikes to 95% within seconds of query fan-out, triggering a container restart. The pod restarts clean but all in-flight queries are lost.",
+        "product": "watsonx.data",
+        "severity": "2",
+        "status": "closed",
+        "resolution_summary": "The JVM heap for the Presto coordinator was increased from 8 GB to 14 GB by adjusting the jvm.config maxHeap setting in the deployment ConfigMap. G1GC region size was also tuned from 4 MB to 8 MB to reduce GC pause frequency under concurrent load. After redeployment, 40-concurrent-query tests completed without OOM events.",
+        "url": "https://ibmsf.lightning.force.com/lightning/r/Case/500DyA3K8mNpQ7rXv2Wj/view"
+      },
+      {
+        "case_id": "500DyB7TzLw4eYcN0sHq",
+        "case_number": "TS013917254",
+        "title": "watsonx.data worker nodes evicted due to JVM heap exhaustion on JOIN-heavy workloads",
+        "description_snippet": "Worker nodes in a 6-node watsonx.data Presto cluster are being evicted by Kubernetes during broad hash JOIN operations involving three or more large fact tables. The OOM killer targets the Presto worker JVM process, causing partial query failures that surface as cryptic 'Query failed: No nodes available' errors to the client. Memory pressure begins approximately 90 seconds into query execution.",
+        "product": "watsonx.data",
+        "severity": "2",
+        "status": "closed",
+        "resolution_summary": "Default heap settings were undersized relative to the worker node's 32 GB RAM allocation; the -Xmx value was raised from 12 GB to 22 GB per worker. Spill-to-disk was also enabled for hash joins via the experimental.spill-enabled property, allowing overflow data to be written to an attached NFS volume. No further evictions were observed under equivalent workloads post-change.",
+        "url": "https://ibmsf.lightning.force.com/lightning/r/Case/500DyB7TzLw4eYcN0sHq/view"
+      },
+      {
+        "case_id": "500DyC9RkMvH5gJp1nF3",
+        "case_number": "TS014200788",
+        "title": "Periodic Kubernetes OOM kill of Hive Metastore pod in watsonx.data during schema discovery",
+        "description_snippet": "The Hive Metastore service pod is intermittently killed with an OOM signal when multiple catalog schema-discovery operations run in parallel, typically triggered by data science notebooks scanning table metadata across large catalogs. Heap dumps captured before failure show excessive retention of ResultSet objects in the metastore's JDBC connection handler. The pod recovers automatically but schema operations in progress must be retried.",
+        "product": "watsonx.data",
+        "severity": "3",
+        "status": "closed",
+        "resolution_summary": "The Hive Metastore JVM heap was increased from 2 GB to 6 GB, and the JDBC statement fetch size was reduced from the default 1000 to 100 rows to limit ResultSet memory footprint. A Kubernetes resource limit of 8 GB was set on the metastore container to prevent it from starving adjacent pods. Parallel schema-discovery load tests confirmed stable memory usage after the changes.",
+        "url": "https://ibmsf.lightning.force.com/lightning/r/Case/500DyC9RkMvH5gJp1nF3/view"
+      },
+      {
+        "case_id": "500DyD2PsEyU6bLm8tG5",
+        "case_number": "TS015634120",
+        "title": "watsonx.data Spark executor pods OOM-killed during ML feature engineering pipelines",
+        "description_snippet": "Spark executor pods running inside the watsonx.data managed Spark environment are terminated by the Kubernetes OOM killer when executing wide transformation pipelines that cache multiple large DataFrames in memory. The failure pattern is consistent: executors survive the first cache materialisation but are killed during the second when combined retained heap exceeds the container limit. Resubmitting the job does not help because the same eviction recurs.",
+        "product": "watsonx.data",
+        "severity": "2",
+        "status": "closed",
+        "resolution_summary": "The Spark executor memory overhead fraction was increased from 0.1 to 0.3 to account for off-heap JVM overhead, and executor memory was raised from 4 GB to 8 GB per pod. Additionally, the pipeline was refactored to unpersist intermediate DataFrames after each stage using DataFrame.unpersist(), eliminating unnecessary heap retention. The combination of configuration tuning and pipeline change resolved all OOM events.",
+        "url": "https://ibmsf.lightning.force.com/lightning/r/Case/500DyD2PsEyU6bLm8tG5/view"
+      }
+    ]
+  },
+
+  "search_SSL_COS": {
+    "total": 3,
+    "cases": [
+      {
+        "case_id": "500DyE5WnBxK3fQt9cA1",
+        "case_number": "TS011082367",
+        "title": "SSL handshake failure when connecting Java SDK to IBM Cloud Object Storage private endpoint",
+        "description_snippet": "Applications using the IBM COS Java SDK v2.8.x fail with 'SSLHandshakeException: PKIX path building failed' when targeting the private endpoint of a regional COS bucket. The error occurs consistently on Java 11 runtimes deployed inside IBM Cloud VPC; the same code works against the public endpoint. Certificate chain validation fails because the private endpoint uses an internally-signed intermediate CA not present in the default JVM truststore.",
+        "product": "IBM Cloud Object Storage",
+        "severity": "2",
+        "status": "closed",
+        "resolution_summary": "The IBM Cloud internal intermediate CA certificate was exported from the VPC private DNS resolver and imported into the application's custom truststore using keytool. The Java SDK was configured to use this custom truststore via the javax.net.ssl.trustStore system property. After the truststore update, all private-endpoint connections completed the TLS handshake successfully.",
+        "url": "https://ibmsf.lightning.force.com/lightning/r/Case/500DyE5WnBxK3fQt9cA1/view"
+      },
+      {
+        "case_id": "500DyF8VjCmR2hNw6dB7",
+        "case_number": "TS012756894",
+        "title": "TLS version mismatch causing SSL handshake error between on-premises ETL and IBM COS S3 endpoint",
+        "description_snippet": "An on-premises Talend ETL server running on RHEL 7 fails to establish a TLS connection to the IBM COS S3-compatible endpoint with error 'handshake_failure (40)' visible in the server-side logs. Network traces confirm the client is offering only TLS 1.0 cipher suites, while the COS endpoint requires a minimum of TLS 1.2. The RHEL 7 OpenSSL default configuration restricts negotiation to legacy cipher suites.",
+        "product": "IBM Cloud Object Storage",
+        "severity": "3",
+        "status": "closed",
+        "resolution_summary": "The OpenSSL configuration on the ETL host was updated to set MinProtocol = TLSv1.2 in /etc/ssl/openssl.cnf, and the Java security properties file was edited to remove TLSv1 and TLSv1.1 from the jdk.tls.disabledAlgorithms exclusion workaround. After the server was restarted, TLS 1.2 was negotiated successfully and all ETL jobs completed without handshake failures.",
+        "url": "https://ibmsf.lightning.force.com/lightning/r/Case/500DyF8VjCmR2hNw6dB7/view"
+      },
+      {
+        "case_id": "500DyG1XkDnS4iOu7eC9",
+        "case_number": "TS016389045",
+        "title": "Intermittent SSL handshake timeouts on IBM COS presigned URL uploads from browser clients",
+        "description_snippet": "Browser-based file uploads using presigned URLs to IBM COS are intermittently failing mid-handshake with a timeout after the ClientHello message is sent. The failures affect approximately 15% of upload attempts and are not reproducible in isolation — only under concurrent load from 50+ simultaneous browser sessions. Server-side TLS termination logs show incomplete handshakes with no corresponding error, suggesting the issue is upstream in the load path.",
+        "product": "IBM Cloud Object Storage",
+        "severity": "2",
+        "status": "open",
+        "resolution_summary": "",
+        "url": "https://ibmsf.lightning.force.com/lightning/r/Case/500DyG1XkDnS4iOu7eC9/view"
+      }
+    ]
+  },
+
+  "search_timeout_governance": {
+    "total": 3,
+    "cases": [
+      {
+        "case_id": "500DyH4YmEoT5jPv0fD2",
+        "case_number": "TS013044512",
+        "title": "Connection pool timeout in watsonx.governance model risk evaluation service under high concurrency",
+        "description_snippet": "The model risk evaluation microservice in watsonx.governance begins throwing 'Connection pool timeout after 30000ms' errors when more than 15 simultaneous risk evaluation requests are in flight. The connection pool to the PostgreSQL metadata backend is exhausted, causing subsequent requests to queue indefinitely. The issue is deterministically reproducible by running a load test at 20 requests per second for more than 60 seconds.",
+        "product": "watsonx.governance",
+        "severity": "2",
+        "status": "closed",
+        "resolution_summary": "The HikariCP connection pool max-pool-size was increased from 10 to 30 connections in the service's application.properties, and the connection timeout was extended from 30 seconds to 60 seconds to accommodate burst queuing. A database connection limit review confirmed the PostgreSQL instance could support the additional connections without performance degradation. No pool exhaustion errors were observed after redeployment under 2× the original load.",
+        "url": "https://ibmsf.lightning.force.com/lightning/r/Case/500DyH4YmEoT5jPv0fD2/view"
+      },
+      {
+        "case_id": "500DyI6ZnFpU7kQw1gE4",
+        "case_number": "TS014887623",
+        "title": "watsonx.governance AI Factsheet service DB connection pool drained by long-running audit queries",
+        "description_snippet": "The AI Factsheet service's connection pool is being drained by long-running audit-trail queries that hold open database connections for 5–8 minutes without committing. This leaves fewer connections available for short-lived write operations, which then time out. The symptom manifests as '500 Internal Server Error' on Factsheet update API calls during scheduled compliance report generation windows.",
+        "product": "watsonx.governance",
+        "severity": "2",
+        "status": "closed",
+        "resolution_summary": "Audit queries were migrated to a dedicated read-replica database instance to isolate their connection usage from the write path. A separate, smaller connection pool was configured for read-only audit operations, capping their maximum simultaneous connections at 5. Write-path connection pool capacity was restored and Factsheet update operations returned to normal response times within one deployment cycle.",
+        "url": "https://ibmsf.lightning.force.com/lightning/r/Case/500DyI6ZnFpU7kQw1gE4/view"
+      },
+      {
+        "case_id": "500DyJ0AnGqV8lRx2hF6",
+        "case_number": "TS015221309",
+        "title": "Connection pool timeouts in watsonx.governance policy enforcement service during parallel evaluation",
+        "description_snippet": "The policy enforcement service in watsonx.governance experiences connection pool timeouts when the IBM OpenPages policy evaluation engine is invoked in parallel by multiple governance workflow steps. Each workflow step acquires a connection but does not release it until the entire evaluation chain completes, leading to pool starvation for workflows with more than 8 parallel branches. Errors appear in logs as 'Unable to acquire JDBC connection' accompanied by a stack trace pointing to the workflow orchestration layer.",
+        "product": "watsonx.governance",
+        "severity": "3",
+        "status": "closed",
+        "resolution_summary": "The workflow orchestration layer was updated to release database connections immediately after each atomic policy evaluation step rather than holding them open for the full workflow duration. Connection pool size was also increased from 15 to 25 as a secondary safeguard. Post-fix testing with 12-branch parallel workflows confirmed zero pool timeout errors and a 40% reduction in average workflow completion time.",
+        "url": "https://ibmsf.lightning.force.com/lightning/r/Case/500DyJ0AnGqV8lRx2hF6/view"
+      }
+    ]
+  },
+
+  "case_detail": [
+    {
+      "case_id": "500DyA3K8mNpQ7rXv2Wj",
+      "case_number": "TS012483901",
+      "title": "Kubernetes pod OOM kill during concurrent Presto queries in watsonx.data",
+      "description": "The Presto coordinator pod in a production watsonx.data deployment on IBM Cloud Kubernetes Service (IKS) 1.27 is being OOM-killed by the kernel when more than 20 concurrent analytical queries are submitted against large Iceberg tables stored in IBM COS. Heap usage spikes from approximately 40% to 95% within 10–15 seconds of query fan-out, at which point the Kubernetes OOM killer sends SIGKILL to the JVM process and the pod restarts. The container is configured with a memory limit of 16 GB, but the Presto coordinator's JVM -Xmx was left at the default 8 GB shipped in the helm chart, leaving 8 GB of container headroom unused. All in-flight queries are lost on restart and must be re-submitted by clients, creating a poor user experience for interactive analytics workloads. The issue was first reported after a workload migration from an on-premises Trino deployment where the heap had been manually tuned to 14 GB.",
+      "description_snippet": "The Presto coordinator pod is being OOM-killed by Kubernetes when more than 20 concurrent analytical queries are submitted against large Iceberg tables. Heap usage spikes to 95% within seconds of query fan-out, triggering a container restart. The pod restarts clean but all in-flight queries are lost.",
+      "product": "watsonx.data",
+      "severity": "2",
+      "status": "closed",
+      "root_cause": "The Presto coordinator JVM -Xmx was set to the helm chart default of 8 GB despite the container memory limit being 16 GB, causing the JVM to exhaust its heap and trigger an OOM kill under concurrent query load rather than utilising available container memory.",
+      "resolution": "The JVM heap for the Presto coordinator was increased from 8 GB to 14 GB by patching the jvm.config ConfigMap entry -Xmx14g, leaving 2 GB of container headroom for the off-heap JVM footprint and OS overhead. G1GC region size was tuned from 4 MB to 8 MB using -XX:G1HeapRegionSize=8m to reduce the frequency of mixed GC pauses under high object allocation rates associated with query planning. The helm chart values file was updated and committed to the customer's GitOps repository to ensure the settings persist across upgrades. After redeployment, a 40-concurrent-query stress test ran for 30 minutes without triggering a single OOM kill.",
+      "resolution_summary": "The JVM heap for the Presto coordinator was increased from 8 GB to 14 GB by adjusting the jvm.config maxHeap setting in the deployment ConfigMap. G1GC region size was also tuned from 4 MB to 8 MB to reduce GC pause frequency under concurrent load. After redeployment, 40-concurrent-query tests completed without OOM events.",
+      "keywords": "OOM, out of memory, Kubernetes, JVM heap, Presto, coordinator, concurrent queries, Iceberg, GC tuning, G1GC, watsonx.data, IKS, container memory limit",
+      "url": "https://ibmsf.lightning.force.com/lightning/r/Case/500DyA3K8mNpQ7rXv2Wj/view"
+    },
+    {
+      "case_id": "500DyC9RkMvH5gJp1nF3",
+      "case_number": "TS014200788",
+      "title": "Periodic Kubernetes OOM kill of Hive Metastore pod in watsonx.data during schema discovery",
+      "description": "The Hive Metastore service pod within a watsonx.data 1.1.x deployment on OpenShift Container Platform 4.13 is intermittently killed with an OOM signal during periods of high parallel schema-discovery activity. The trigger is typically a group of data science notebook users running cell blocks that enumerate catalog metadata across 500+ table schemas simultaneously, each operation issuing a series of getTable and getPartitions RPC calls to the Metastore. Heap dumps captured via a JVM shutdown hook before the final OOM show excessive retention of ResultSet and PreparedStatement objects in the Metastore's internal JDBC connection handler, suggesting that per-RPC connections are not being closed promptly. The pod recovers automatically via the Kubernetes restart policy, but schema-enumeration operations in progress at the time of the kill return a generic 'Metastore connection reset' error to notebooks and must be retried. The Metastore container memory limit was 4 GB, and the JVM was configured with -Xmx2g, leaving only 2 GB for the rest of the process.",
+      "description_snippet": "The Hive Metastore service pod is intermittently killed with an OOM signal when multiple catalog schema-discovery operations run in parallel, typically triggered by data science notebooks scanning table metadata across large catalogs. Heap dumps captured before failure show excessive retention of ResultSet objects in the metastore's JDBC connection handler. The pod recovers automatically but schema operations in progress must be retried.",
+      "product": "watsonx.data",
+      "severity": "3",
+      "status": "closed",
+      "root_cause": "The Hive Metastore JVM heap was undersized at 2 GB relative to the container's 4 GB limit, and a high JDBC statement fetch size of 1000 rows caused each concurrent getTable RPC to retain large ResultSet objects in heap simultaneously, collectively exhausting available memory.",
+      "resolution": "The Hive Metastore JVM heap was increased from 2 GB to 6 GB by updating the -Xmx flag in the metastore deployment manifest, and the container memory limit was correspondingly raised to 8 GB to provide adequate headroom. The JDBC statement fetch size in the Metastore configuration (datanucleus.fetchSize) was reduced from 1000 to 100 rows, dramatically cutting the per-ResultSet memory footprint during bulk schema enumeration. A Kubernetes resource limit of 8 GB was applied to the metastore container to prevent runaway memory growth from starving adjacent pods such as the Presto coordinator. Post-change load testing with 30 simultaneous notebook users performing full-catalog schema scans ran for 2 hours with no OOM events and stable heap usage below 60%.",
+      "resolution_summary": "The Hive Metastore JVM heap was increased from 2 GB to 6 GB, and the JDBC statement fetch size was reduced from the default 1000 to 100 rows to limit ResultSet memory footprint. A Kubernetes resource limit of 8 GB was set on the metastore container to prevent it from starving adjacent pods. Parallel schema-discovery load tests confirmed stable memory usage after the changes.",
+      "keywords": "OOM, out of memory, Hive Metastore, Kubernetes, JVM heap, schema discovery, ResultSet, JDBC fetch size, datanucleus, notebooks, catalog metadata, watsonx.data, OpenShift",
+      "url": "https://ibmsf.lightning.force.com/lightning/r/Case/500DyC9RkMvH5gJp1nF3/view"
+    }
+  ]
+}
