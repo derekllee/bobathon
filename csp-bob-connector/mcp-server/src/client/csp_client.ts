@@ -19,10 +19,8 @@
 import axios, { AxiosInstance } from "axios";
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 import { IamTokenManager } from "../auth/iam_auth.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_PATH = path.join(__dirname, "../../test/fixtures/csp_responses.json");
 
 // ─── Types ────────────────────────────────────────────────────────────────────
