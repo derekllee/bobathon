@@ -3,8 +3,11 @@
     "csp-connector": {
       "command": "node",
       "args": [
-        "C:\\Users\\AyushiMistry\\bobathon\\csp-bob-connector\\dist\\mcp-server\\src\\echo-test.js"
-      ]
+        "C:\\Users\\AyushiMistry\\bobathon\\csp-bob-connector\\dist\\mcp-server\\src\\index.js"
+      ],
+      "env": {
+        "FIXTURE_MODE": "true"
+      }
     }
   }
 }
