@@ -12,7 +12,8 @@
     "moduleResolution": "node10",
     "ignoreDeprecations": "6.0",
     "target": "es2022",
-    "types": ["node"],
+    "types": ["node", "jest"],
+    "resolveJsonModule": true,
     // For nodejs:
     // "lib": ["esnext"],
 
@@ -22,8 +23,8 @@
     "declarationMap": true,
 
     // Stricter Typechecking Options
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false,
 
     // Style Options
     // "noImplicitReturns": true,

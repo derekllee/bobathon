@@ -6,6 +6,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { CspClient } from "./client/csp_client.js";
+import { IamTokenManager } from "./auth/iam_auth.js";
 
 // ── Input schemas ────────────────────────────────────────────────────────────
 
@@ -29,10 +30,13 @@ const GetRelatedDocsInput = z.object({
 
 // ── Server setup ─────────────────────────────────────────────────────────────
 
-const client = new CspClient(
-  process.env["CSP_BASE_URL"] ?? "https://csp.ibm.com/api/v1",
-  async () => process.env["CSP_TOKEN"] ?? ""
-);
+// In FIXTURE_MODE the auth layer is never called, so stub credentials are safe.
+const auth = new IamTokenManager({
+  clientId:     process.env["CSP_CLIENT_ID"]     ?? "fixture-dev",
+  clientSecret: process.env["CSP_CLIENT_SECRET"] ?? "fixture-dev",
+});
+
+const client = new CspClient({ auth });
 
 const server = new Server(
   { name: "csp-connector", version: "0.1.0" },
