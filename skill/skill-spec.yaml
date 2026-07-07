@@ -1,0 +1,332 @@
+# Generic connector skill schema v1.0
+# To create a new skill: copy this file, fill in all [CUSTOMIZE] fields.
+# Fields without [CUSTOMIZE] are structural — keep them as-is.
+#
+# Schema version: 1.0
+# Maintainer: CSP Bob Connector team — Bobathon 2025
+
+# ─── Identity ─────────────────────────────────────────────────────────────────
+
+skill:
+  id: support-intelligence-csp              # [CUSTOMIZE] unique kebab-case slug
+  version: "0.1.0"                          # [CUSTOMIZE] semver
+  display_name: "Support Intelligence"      # [CUSTOMIZE] shown in Bob's skill picker
+  description: >                            # [CUSTOMIZE] 1-2 sentences; shown in marketplace
+    Search IBM CSP for historical support cases matching the user's symptom
+    description. Analyze patterns, hypothesize root causes, recommend actions,
+    and cite every claim with a confidence level.
+  icon: "support"                           # [CUSTOMIZE] icon key from Bob's icon library
+  author: "Bobathon 2025 Team"             # [CUSTOMIZE]
+  license: "Apache-2.0"
+
+# ─── Trigger Configuration ────────────────────────────────────────────────────
+# Controls how a user invokes this skill from Bob.
+
+trigger:
+  # How the skill is invoked: natural_language | slash_command | explicit_tool_call
+  invocation: natural_language              # [CUSTOMIZE]
+
+  # Slash command (only used when invocation: slash_command)
+  slash_command: "/support-search"          # [CUSTOMIZE] e.g. /jira-search, /snow-lookup
+
+  # Example prompts that trigger this skill.
+  # Used for Bob's autocomplete and skill documentation.
+  example_prompts:                          # [CUSTOMIZE] domain-specific examples
+    - "Search CSP for cases about {symptom}"
+    - "Find historical cases related to {error} in {product}"
+    - "What do past support cases say about {issue}?"
+    - "Are there known fixes for {error}?"
+    - "/support-search {keywords}"
+
+  # Keywords that indicate this skill is relevant (used for intent routing)
+  intent_keywords:                          # [CUSTOMIZE]
+    - "CSP"
+    - "support case"
+    - "historical cases"
+    - "known issue"
+    - "OOM"
+    - "root cause"
+    - "fix"
+
+# ─── Connector Bindings ───────────────────────────────────────────────────────
+# Lists every MCP tool this skill uses, with call ordering and parallelism limits.
+# [CUSTOMIZE] Replace tool names, required flags, and call_order with your tools.
+
+connectors:
+  - tool: csp_search_cases                  # [CUSTOMIZE] Tool 1: primary search
+    required: true                          # Must succeed or skill aborts
+    call_order: 1
+    description: "Primary search — always called first"
+
+  - tool: csp_get_case                      # [CUSTOMIZE] Tool 2: detail enrichment
+    required: false                         # Optional enrichment step
+    call_order: 2
+    max_parallel_calls: 3                   # G5: never exceed this per query
+    description: "Fetch full case detail for top N search results"
+
+  - tool: csp_get_related_docs              # [CUSTOMIZE] Tool 3: supplementary docs
+    required: false
+    call_order: 3
+    max_parallel_calls: 1
+    description: "Retrieve related KB articles for additional context"
+
+# ─── Agent Workflow ───────────────────────────────────────────────────────────
+# 5-step pipeline: search → enrich → docs → analyze → output
+# Each step feeds into the next. Parallel steps are marked parallel: true.
+# [CUSTOMIZE] Rename steps, swap tools, or remove optional steps for your domain.
+
+workflow:
+
+  - step: search
+    id: step_search
+    description: "Call primary search tool with extracted keywords"
+    type: tool_call
+    tool: csp_search_cases                  # [CUSTOMIZE]
+    input_mapping:
+      keywords: "{{extract_keywords(user_input)}}"
+      product:  "{{extract_product(user_input) | optional}}"
+      severity: "{{extract_severity(user_input) | optional}}"
+      limit:    10
+    on_empty_result:
+      action: abort
+      message: >
+        No relevant cases found in CSP. Confidence: INSUFFICIENT.
+        I cannot hypothesize a root cause without evidence.
+
+  - step: enrich
+    id: step_enrich
+    description: "Fetch full detail for top 3 search results"
+    type: tool_call
+    tool: csp_get_case                      # [CUSTOMIZE]
+    depends_on: step_search
+    input_mapping:
+      case_id: "{{step_search.cases[0:3].case_id}}"
+    parallel: true
+    max_parallel_calls: 3                   # G5 enforcement
+
+  - step: docs                              # [CUSTOMIZE] remove if no KB/docs source
+    id: step_docs
+    description: "Retrieve related documentation and KB articles"
+    type: tool_call
+    tool: csp_get_related_docs              # [CUSTOMIZE]
+    depends_on: step_search
+    input_mapping:
+      keywords: "{{user_input}}"
+      limit: 5
+    required: false                         # Skill continues if this step fails
+
+  - step: analyze
+    id: step_analyze
+    description: "LLM analysis with guardrails enforced by system prompt"
+    type: llm_prompt
+    depends_on: [step_enrich, step_docs]
+    prompt_template: "prompts/analyze.md"   # [CUSTOMIZE] path to your analysis prompt
+    inputs:
+      cases: "{{step_enrich.results}}"
+      docs:  "{{step_docs.articles | default: []}}"
+      user_query: "{{user_input}}"
+    llm_params:
+      temperature: 0.2                      # Low temperature for factual tasks
+      max_tokens: 2000
+
+  - step: output
+    id: step_output
+    description: "Validate and return structured response"
+    type: output_validation
+    depends_on: step_analyze
+    format: support_intelligence_response_v1
+    on_validation_failure:
+      action: return_error
+      message: "Response did not meet required output schema. Retrying is not recommended without additional case data."
+
+# ─── Output Schema ────────────────────────────────────────────────────────────
+# The structured format the agent must produce.
+# Validated by the output step above.
+# [CUSTOMIZE] Rename fields or add domain-specific fields (e.g. ticket_number, component)
+
+output_format:
+  id: support_intelligence_response_v1      # [CUSTOMIZE] versioned schema ID
+  fields:
+
+    summary:
+      type: string
+      required: true
+      description: "1-2 paragraph summary of findings and patterns"
+
+    root_cause_hypotheses:
+      type: array
+      required: true
+      min_items: 0                          # 0 allowed when confidence is INSUFFICIENT
+      items:
+        hypothesis:          { type: string, required: true }
+        evidence_case_ids:   { type: array, items: { type: string }, required: true }
+        confidence:          { type: enum, values: [HIGH, MEDIUM, LOW], required: true }
+        explanation:         { type: string, required: true }
+
+    recommended_actions:
+      type: array
+      required: true
+      min_items: 0
+      items:
+        action:              { type: string, required: true }
+        rationale:           { type: string, required: true }
+        source_citation:     { type: string, required: true }  # G2: citation required
+
+    citations:
+      type: array
+      required: true
+      min_items: 0
+      items:
+        case_id:             { type: string, required: true }
+        url:                 { type: string, format: uri, required: true }
+        snippet:             { type: string, required: true }
+        source_type:         { type: enum, values: [CSP_CASE, KB_ARTICLE], required: true }  # G6
+
+    confidence_level:
+      type: enum
+      required: true
+      values: [HIGH, MEDIUM, LOW, INSUFFICIENT]
+      description: >
+        HIGH:         ≥3 cases with matching symptoms AND matching resolution pattern.
+        MEDIUM:       1-2 cases match symptoms; resolution partially consistent.
+        LOW:          Symptom match only; no resolution data or conflicting signals.
+        INSUFFICIENT: No relevant cases found; analysis must stop.
+
+    confidence_rationale:
+      type: string
+      required: true
+      description: "One sentence explaining the confidence level assignment"
+
+# ─── Guardrails ───────────────────────────────────────────────────────────────
+# Agentic best practices. ALL connectors built from this template must preserve G1–G7.
+# [CUSTOMIZE] May add domain-specific rules after G7. Do not remove or weaken G1–G7.
+
+guardrails:
+
+  - id: G1
+    name: "Search before reasoning"
+    rule: >
+      ALWAYS call the primary search tool before forming any hypothesis.
+      Never answer from training knowledge alone when the user describes a technical problem.
+    enforcement: system_prompt
+    on_violation: abort_with_error
+
+  - id: G2
+    name: "Cite every claim"
+    rule: >
+      Every factual statement in the output must reference a case_id or article_id.
+      No uncited assertions are permitted. Format: [CSP:case_id] "quoted evidence".
+    enforcement: output_validation
+    on_violation: reject_response
+
+  - id: G3
+    name: "Report confidence always"
+    rule: >
+      Every response must include a confidence_level (HIGH/MEDIUM/LOW/INSUFFICIENT)
+      and a one-sentence confidence_rationale. If confidence is INSUFFICIENT,
+      stop and explain why. Do not attempt a hypothesis.
+    enforcement: output_validation
+    on_violation: reject_response
+
+  - id: G4
+    name: "Never fabricate root causes"
+    rule: >
+      Root cause hypotheses must be supported by at least one retrieved case.
+      Only hypothesize what the evidence directly supports.
+      If no evidence exists, output confidence_level: INSUFFICIENT.
+    enforcement: system_prompt
+    on_violation: abort_with_error
+
+  - id: G5
+    name: "Bound tool calls"
+    rule: >
+      Maximum 3 parallel csp_get_case calls per query.
+      Maximum 2 total tool types invoked per workflow run.
+      Do not chain unbounded lookups or recursive searches.
+    enforcement: skill_spec_limits         # max_parallel_calls in connectors section
+    on_violation: truncate_and_continue
+
+  - id: G6
+    name: "Tag source type in citations"
+    rule: >
+      Citations must tag their source_type as CSP_CASE or KB_ARTICLE.
+      Do not conflate support case resolutions with product documentation.
+    enforcement: output_validation
+    on_violation: reject_response
+
+  - id: G7
+    name: "Respect data sensitivity"
+    rule: >
+      Do not repeat raw PII (customer names, email addresses, account IDs)
+      from case descriptions in the output. Summarize instead.
+    enforcement: system_prompt             # [CUSTOMIZE] add MCP middleware PII scrubber
+    on_violation: scrub_and_continue
+
+  # [CUSTOMIZE] Add domain-specific rules here, continuing the G-numbering
+  # Example:
+  # - id: G8
+  #   name: "Your custom rule"
+  #   rule: "..."
+  #   enforcement: system_prompt | output_validation | skill_spec_limits | mcp_middleware
+
+# ─── Error Handling ───────────────────────────────────────────────────────────
+# Defines what the agent does when each step fails.
+
+error_handling:
+
+  auth_failure:                             # HTTP 401 from any tool
+    action: abort
+    user_message: "Authentication to CSP failed. Please verify your credentials and try again."
+
+  tool_timeout:                             # Tool call exceeds 15s
+    action: skip_step
+    user_message: "CSP did not respond in time. Proceeding with partial data."
+
+  rate_limited:                             # HTTP 429 from any tool
+    action: retry_once_after_1s
+    user_message: "CSP rate limit hit. Retrying in 1 second."
+
+  no_results:                               # search returns total: 0
+    action: abort
+    user_message: >
+      No relevant historical cases found in CSP for this query.
+      Confidence: INSUFFICIENT. Try different keywords or search CSP directly.
+
+  validation_failure:                       # Output schema validation fails
+    action: return_error
+    user_message: "The analysis output did not meet the required format. Please try again."
+
+# ─── Demo / Fixture Mode ──────────────────────────────────────────────────────
+# All connectors must support FIXTURE_MODE for demos and CI.
+# [CUSTOMIZE] Update fixture_key_map to match your test/fixtures/responses.json keys.
+
+fixture_mode:
+  env_var: FIXTURE_MODE
+  env_value: "true"
+  fixture_file: "test/fixtures/csp_responses.json"
+  fixture_key_map:                          # [CUSTOMIZE] keyword patterns → fixture keys
+    - keywords_pattern: ["oom", "memory", "heap"]
+      fixture_key: "search_OOM_watsonx"
+    - keywords_pattern: ["ssl", "tls", "certificate", "handshake"]
+      fixture_key: "search_SSL_COS"
+    - keywords_pattern: ["timeout", "connection pool"]
+      fixture_key: "search_timeout_governance"
+    - keywords_pattern: ["*"]              # default catch-all
+      fixture_key: "search_OOM_watsonx"
+
+# ─── Metadata ─────────────────────────────────────────────────────────────────
+
+metadata:
+  created_at: "2025-01-01"                  # [CUSTOMIZE]
+  tags:
+    - support
+    - csp
+    - watsonx
+    - root-cause-analysis
+    - agentic-guardrails
+  related_connectors:                       # [CUSTOMIZE] list sibling connectors
+    - connector-template/HOWTO.md
+  documentation:
+    - docs/architecture.md
+    - docs/guardrails.md
+    - skill/README.md
